@@ -1,6 +1,6 @@
 # Simple Shopify Product Quiz
 
-If you prefer video, watch the setup walkthrough here: `Coming soon`
+If you prefer video, watch the setup walkthrough here: [https://youtu.be/RISUJZc86vc](https://youtu.be/RISUJZc86vc)
 
 Simple Shopify Product Quiz is a free Shopify section that helps customers find the best product for their needs. Add it to your theme, connect up to four possible product recommendations, create a few quiz questions, and the section will recommend the product that scores the most points.
 
