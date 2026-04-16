@@ -1,0 +1,973 @@
+{% liquid
+  assign avpc_pq_accent_brightness = section.settings.accent_color | color_brightness
+  assign avpc_pq_text_brightness = section.settings.text_color | color_brightness
+  
+  if avpc_pq_accent_brightness < 130
+    assign avpc_pq_accent_foreground = '#ffffff'
+  else
+    if avpc_pq_text_brightness < 130
+      assign avpc_pq_accent_foreground = section.settings.text_color
+    else
+      assign avpc_pq_accent_foreground = section.settings.background_color | color_mix: '#000000', 20
+    endif
+  endif
+  assign avpc_pq_padding_top = section.settings.padding_top | default: 2 | remove: 'rem' | append: 'em'
+  assign avpc_pq_padding_bottom = section.settings.padding_bottom | default: 2 | remove: 'rem' | append: 'em'
+%}
+
+<style>
+  .avpc-product-quiz[data-section-id="{{ section.id }}"] {
+    --avpc-pq-background: {{ section.settings.background_color }};
+    --avpc-pq-text: {{ section.settings.text_color }};
+    --avpc-pq-text-muted: color-mix(in srgb, var(--avpc-pq-text) 80%, transparent);
+    --avpc-pq-text-subtle: color-mix(in srgb, var(--avpc-pq-text) 55%, transparent);
+    --avpc-pq-text-faint: color-mix(in srgb, var(--avpc-pq-text) 38%, transparent);
+    --avpc-pq-border: color-mix(in srgb, var(--avpc-pq-text) 10%, transparent);
+    --avpc-pq-border-strong: color-mix(in srgb, var(--avpc-pq-text) 18%, transparent);
+    --avpc-pq-shadow-soft: color-mix(in srgb, var(--avpc-pq-text) 4%, transparent);
+    --avpc-pq-shadow-deep: color-mix(in srgb, var(--avpc-pq-text) 3%, transparent);
+    --avpc-pq-neutral-surface: color-mix(in srgb, var(--avpc-pq-text) 4%, var(--avpc-pq-background));
+    --avpc-pq-neutral-surface-hover: color-mix(in srgb, var(--avpc-pq-text) 4%, var(--avpc-pq-background));
+    --avpc-pq-accent: {{ section.settings.accent_color }};
+    --avpc-pq-accent-foreground: {{ avpc_pq_accent_foreground }};
+    --avpc-pq-accent-soft: color-mix(in srgb, var(--avpc-pq-accent) 12%, var(--avpc-pq-background));
+    --avpc-pq-accent-hover: color-mix(in srgb, var(--avpc-pq-accent) 88%, var(--avpc-pq-background));
+    --avpc-pq-accent-shadow: color-mix(in srgb, var(--avpc-pq-accent) 30%, transparent);
+    --avpc-pq-coupon-border: {{ section.settings.coupon_border_color }};
+    --avpc-pq-coupon-background: {{ section.settings.coupon_background_color }};
+    --avpc-pq-coupon-text: {{ section.settings.coupon_text_color }};
+    --avpc-pq-coupon-shadow: color-mix(in srgb, var(--avpc-pq-coupon-border) 8%, transparent);
+    display: block;
+    font-size: 16px;
+    background-color: var(--avpc-pq-background);
+    color: var(--avpc-pq-text);
+    padding-top: {{ avpc_pq_padding_top }};
+    padding-bottom: {{ avpc_pq_padding_bottom }};
+  }
+  .avpc-pq-error-message {
+    color: #9d1130;
+    font-weight: 600;
+    text-align: center;
+    background: #f7dce9;
+    padding: 1.25em 1.25em;
+    border: 0.125em solid #9a1130;
+    margin: 1.25em;
+    border-radius: 0.5em;
+  }
+  .avpc-pq-error-message span {
+    display: inline-block;
+    margin-bottom: 0.5em;
+  }
+  .avpc-pq-coupon-callout {
+    margin: 1em 0 0.9375em 0;
+    padding: 0.75em 1em 0.875em 1em;
+    border: 0.125em dashed var(--avpc-pq-coupon-border);
+    border-radius: 0.875em;
+    background: var(--avpc-pq-coupon-background);
+    color: var(--avpc-pq-coupon-text);
+    box-shadow: 0 0.625em 1.5em var(--avpc-pq-coupon-shadow);
+  }
+  .avpc-pq-quiz-slide p.avpc-pq-coupon-label {
+    margin: 0 0 0.375em;
+    font-size: 0.75em;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .avpc-pq-quiz-slide p.avpc-pq-coupon-copy {
+    margin: 0;
+    font-size: 1em;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  .avpc-pq-quiz-container {
+    max-width: 48.75em;
+    margin: 0 auto;
+    padding: 1.25em;
+    position: relative;
+    height: 26.25em;
+  }
+
+  .avpc-pq-quiz-slide {
+    background: var(--avpc-pq-background);
+    border: 0.0625em solid var(--avpc-pq-border);
+    border-radius: 1em;
+    box-shadow: 0 0.0625em 0.1875em var(--avpc-pq-shadow-soft), 0 0.375em 1.5em var(--avpc-pq-shadow-deep);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 400ms ease, visibility 400ms ease;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+
+  .avpc-pq-quiz-slide p {
+    font-size: 0.875em;
+    line-height: 1.6;
+  }
+
+  .avpc-pq-quiz-slide.avpc-pq-active {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  /* Side-by-side layout for intro & results */
+  .avpc-pq-slide-split {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .avpc-pq-slide-media {
+    flex: 0 0 45%;
+    background: var(--avpc-pq-neutral-surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .avpc-pq-slide-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 0;
+  }
+
+  .avpc-pq-slide-body {
+    flex: 1;
+    padding: 2.5em 2.25em;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 0.9375em;
+  }
+
+  /* Question slides keep simple centered padding */
+  .avpc-pq-quiz-slide[data-slide="question"] {
+    padding: 2.5em 2.25em;
+    justify-content: center;
+  }
+
+  /* Results placeholder */
+  .avpc-pq-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2.5em 1.25em;
+    text-align: center;
+    color: var(--avpc-pq-text-faint);
+  }
+
+  .avpc-pq-placeholder-icon {
+    font-size: 3em;
+    margin-bottom: 0.75em;
+    opacity: 0.5;
+  }
+
+  .avpc-pq-placeholder-text {
+    font-size: 1.05em;
+    font-weight: 500;
+    color: var(--avpc-pq-text-subtle);
+  }
+
+  @media (max-width: 50em) {
+    .avpc-pq-quiz-container {
+      height: auto;
+      min-height: 6.25em;
+      max-width: 36.25em;
+      transition: height 400ms ease;
+      padding: 0 1.25em;
+    }
+    .avpc-pq-quiz-slide {
+      height: auto;
+      margin: 0 1.25em;
+    }
+    .avpc-pq-quiz-slide.avpc-pq-active {
+      position: relative;
+      margin: 0;
+    }
+    .avpc-pq-quiz-slide .avpc-pq-slide-split {
+      flex: 0 0 auto;
+    }
+    .avpc-pq-slide-split {
+      flex-direction: column;
+    }
+    .avpc-pq-slide-media {
+      flex: 0 0 14.0625em;
+    }
+  }
+
+  .avpc-pq-quiz-slide h2 {
+    margin: 0;
+    font-size: 1.75em;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    text-wrap: balance;
+    text-align: center;
+  }
+
+  .avpc-pq-quiz-slide h3 {
+    margin: 0 0 0.3125em;
+    font-size: 1em;
+    font-weight: 500;
+  }
+
+  .avpc-pq-quiz-slide h4 {
+    margin: 0 0 1.25em;
+    font-size: 1.3em;
+    font-weight: 700;
+    line-height: 1.3;
+    text-wrap: balance;
+  }
+
+  .avpc-pq-slide-body > p {
+    text-wrap: balance;
+    text-align: center;
+    margin: 0;
+  }
+
+  .avpc-pq-quiz-slide > p {
+    margin: 0;
+    font-size: 1.05em;
+    color: var(--avpc-pq-text-muted);
+    line-height: 1.5;
+  }
+
+  .avpc-pq-quiz-slide img {
+    border-radius: 0.75em;
+    max-width: 100%;
+    height: 75%;
+    object-fit: contain;
+  }
+
+  .avpc-pq-quiz-slide[data-slide="intro"] picture,
+  .avpc-pq-quiz-slide[data-slide="intro"] img {
+    height: 100%;
+    width: 100%;
+    max-width: none;
+    object-fit: cover;
+    border-radius: 0;
+  }
+
+  .avpc-pq-quiz-slide[data-slide="results"] img {
+    max-width: 80%;
+  }
+
+  .avpc-pq-quiz-slide fieldset {
+    border: none;
+    padding: 0;
+    margin: 1.25em 0 0.3125em 0;
+  }
+
+  .avpc-pq-answer-option {
+    display: flex;
+    align-items: center;
+    margin: 0;
+    padding: 0.875em 1.125em;
+    border: 0.0625em solid var(--avpc-pq-border);
+    border-radius: 0.625em;
+    background: var(--avpc-pq-background);
+    color: var(--avpc-pq-text);
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+    font-size: 1em;
+    font-weight: 500;
+  }
+
+  .avpc-pq-answer-option + .avpc-pq-answer-option {
+    margin-top: 0.625em;
+    line-height: 1.5;
+  }
+
+  .avpc-pq-answer-option:hover {
+    background: var(--avpc-pq-neutral-surface-hover);
+    border-color: var(--avpc-pq-border-strong);
+    transform: translateY(-0.0625em);
+  }
+
+  .avpc-pq-answer-option:has(input:checked) {
+    background: var(--avpc-pq-accent-soft);
+    border-color: var(--avpc-pq-accent);
+    box-shadow: 0 0 0 0.0625em var(--avpc-pq-accent);
+  }
+
+  .avpc-pq-answer-option input[type="radio"] {
+    accent-color: var(--avpc-pq-accent);
+    width: 1.125em;
+    height: 1.125em;
+    margin-right: 0.75em;
+    flex-shrink: 0;
+  }
+
+  .avpc-pq-quiz-slide [data-product-recommendation] a {
+    display: block;
+    padding: 1.25em;
+    border: 0.0625em solid var(--avpc-pq-border);
+    border-radius: 0.75em;
+    text-decoration: none;
+    color: inherit;
+    transition: background 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .avpc-pq-quiz-slide [data-product-recommendation] a:hover {
+    background: var(--avpc-pq-neutral-surface-hover);
+    box-shadow: 0 0.125em 0.75em var(--avpc-pq-shadow-soft);
+  }
+
+  .avpc-pq-quiz-slide [data-product-recommendation] img {
+    border-radius: 0.625em;
+    margin-bottom: 0.75em;
+  }
+
+  /* Navigation */
+  .avpc-pq-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 0;
+  }
+
+  .avpc-pq-slide-split .avpc-pq-nav {
+    justify-content: center;
+  }
+
+  .avpc-pq-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375em;
+    padding: 0.75em 1.75em;
+    border: none;
+    border-radius: 1.5625em;
+    font-size: 0.95em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+  }
+
+  .avpc-pq-btn:active {
+    transform: scale(0.97);
+  }
+
+  .avpc-pq-btn-primary {
+    background: var(--avpc-pq-accent);
+    color: var(--avpc-pq-accent-foreground);
+    margin-top: 0.625em;
+  }
+
+  .avpc-pq-btn-primary:hover {
+    background: var(--avpc-pq-accent-hover);
+    box-shadow: 0 0.25em 0.875em var(--avpc-pq-accent-shadow);
+    transform: translateY(-0.0625em);
+  }
+
+  .avpc-pq-btn-back {
+    background: transparent;
+    color: var(--avpc-pq-text-muted);
+    padding: 0.75em 1em;
+    position: absolute;
+    bottom: 1.5625em;
+  }
+
+  .avpc-pq-btn-back:hover {
+    background: var(--avpc-pq-neutral-surface);
+    color: var(--avpc-pq-text);
+  }
+
+  .avpc-pq-shop-btn {
+    display: inline-block;
+    margin-top: 0.3125em;
+    padding: 0.75em 1.75em;
+    background: var(--avpc-pq-accent);
+    color: var(--avpc-pq-accent-foreground);
+    border-radius: 1.5625em;
+    font-size: 0.95em;
+    font-weight: 600;
+    text-align: center;
+    text-wrap: balance;
+    transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+  }
+
+  .avpc-pq-shop-btn:hover {
+    background: var(--avpc-pq-accent-hover);
+    box-shadow: 0 0.25em 0.875em var(--avpc-pq-accent-shadow);
+    transform: translateY(-0.0625em);
+  }
+
+  .avpc-pq-arrow {
+    display: inline-block;
+    transition: transform 0.2s ease;
+  }
+
+  .avpc-pq-btn-primary:hover .avpc-pq-arrow,
+  .avpc-pq-shop-btn:hover .avpc-pq-arrow {
+    transform: translateX(0.25em) scaleX(1.2);
+  }
+
+  .avpc-pq-progress {
+    font-size: 0.85em;
+    color: var(--avpc-pq-text-subtle);
+    font-weight: 500;
+    text-align: center;
+    position: absolute;
+    top: 1.5625em;
+    left: calc(50% - 4.375em);
+    width: 8.75em;
+  }
+  [data-slide="intro"] .avpc-pq-slide-body {
+    background-image:
+      radial-gradient(
+        180% 80% at 50% 100%,
+        color-mix(in srgb, var(--avpc-pq-accent) 24%, var(--avpc-pq-background)) 0%,
+        transparent 75%
+      ),
+      radial-gradient(
+        140% 95% at 70% 118%,
+        color-mix(in srgb, var(--avpc-pq-accent) 18%, var(--avpc-pq-background)) 0%,
+        color-mix(in srgb, var(--avpc-pq-accent) 8%, var(--avpc-pq-background)) 42%,
+        var(--avpc-pq-background) 150%
+      );
+  }
+  [data-slide="results"] .avpc-pq-slide-media {
+    background-image:
+      radial-gradient(
+        85% 70% at 100% 0%,
+        color-mix(in srgb, var(--avpc-pq-accent) 10%, transparent) 0%,
+        transparent 90%
+      ),
+      radial-gradient(
+        120% 90% at 50% 100%,
+        color-mix(in srgb, var(--avpc-pq-accent) 24%, var(--avpc-pq-background)) 0%,
+        transparent 120%
+      ),
+      radial-gradient(
+        140% 95% at 70% 118%,
+        color-mix(in srgb, var(--avpc-pq-accent) 18%, var(--avpc-pq-background)) 0%,
+        color-mix(in srgb, var(--avpc-pq-accent) 8%, var(--avpc-pq-background)) 42%,
+        var(--avpc-pq-background) 150%
+      );
+  }
+  @media (max-width: 50em) {
+    .avpc-pq-quiz-slide[data-slide="question"] {
+      padding: 1.5625em 2.25em;
+      justify-content: center;
+    }
+    .avpc-pq-progress {
+      position: relative;
+      top: unset;
+      left: unset;
+      margin: auto;
+      padding-bottom: 0.9375em;
+    }
+    .avpc-pq-btn-back {
+      position: relative;
+      top: unset;
+      bottom: unset;
+      margin-top: 1.25em;
+    }
+    [data-slide="results"] .avpc-pq-slide-body {
+      padding: 1.75em 2.25em 0.9375em 2.25em;
+    }
+    [data-slide="results"] .avpc-pq-btn-back {
+      margin-top: 0.625em;
+    }
+  }
+</style>
+
+<script src="{{ 'avpc-product-quiz.js' | asset_url }}" defer></script>
+
+{% capture avpc_pq_coupon_message %}
+  {% if section.settings.coupon_code != blank %}
+    {% if section.settings.coupon_discount_type == 'percentage' %}
+      Save {{ section.settings.coupon_discount_amount }}% with code:
+    {% elsif section.settings.coupon_discount_type == 'fixed_amount' %}
+      Save {{ section.settings.coupon_discount_amount | times: 100 | money }} with code:
+    {% endif %}
+  {% endif %}
+{% endcapture %}
+
+<avpc-product-quiz class="avpc-product-quiz" data-section-id="{{ section.id }}">
+  <div class="avpc-pq-error-message" style="display: none;"><span>SETTINGS ERRORS:</span><br></div>
+  <div class="avpc-pq-quiz-container">
+    <div class="avpc-pq-quiz-slide avpc-pq-active" data-slide="intro">
+      <div class="avpc-pq-slide-split">
+        <div class="avpc-pq-slide-media">
+          {% liquid
+            assign avpc_pq_intro_image_desktop = section.settings.image
+            assign avpc_pq_intro_image_mobile = section.settings.mobile_image
+            assign avpc_pq_intro_image_fallback = avpc_pq_intro_image_desktop | default: avpc_pq_intro_image_mobile
+          %}
+          {% if avpc_pq_intro_image_fallback != blank %}
+            <picture>
+              {% if avpc_pq_intro_image_mobile != blank %}
+                <source media="(max-width: 800px)" srcset="{{ avpc_pq_intro_image_mobile | image_url: width: 800 }}">
+              {% endif %}
+              {{ avpc_pq_intro_image_fallback | image_url: width: 800 | image_tag }}
+            </picture>
+          {% endif %}
+        </div>
+        <div class="avpc-pq-slide-body">
+          {% if section.settings.quiz_heading != blank %}
+            <h2>{{ section.settings.quiz_heading }}</h2>
+          {% endif %}
+          {% if section.settings.quiz_subheading != blank %}
+            <p>{{ section.settings.quiz_subheading }}</p>
+          {% endif %}
+          <div class="avpc-pq-nav">
+            <span></span>
+            <button type="button" class="avpc-pq-btn avpc-pq-btn-primary" data-action="next">Start Quiz <span class="avpc-pq-arrow">&rarr;</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% for block in section.blocks %}
+      {% if block.type == 'question' %}
+        <div class="avpc-pq-quiz-slide" data-slide="question" data-block-id="{{ block.id }}">
+          <div class="avpc-pq-progress" data-progress></div>
+          <p>{{ block.settings.question }}</p>
+          <fieldset>
+            {% if block.settings.answer_1 != blank %}
+              <label class="avpc-pq-answer-option" for="answer-{{ block.id }}-1">
+                <input
+                  id="answer-{{ block.id }}-1"
+                  type="radio"
+                  name="answer-{{ block.id }}"
+                  value="{{ block.settings.products_1 | escape }}"
+                >
+                {{ block.settings.answer_1 }}
+              </label>
+            {% endif %}
+
+            {% if block.settings.answer_2 != blank %}
+              <label class="avpc-pq-answer-option" for="answer-{{ block.id }}-2">
+                <input
+                  id="answer-{{ block.id }}-2"
+                  type="radio"
+                  name="answer-{{ block.id }}"
+                  value="{{ block.settings.products_2 | escape }}"
+                >
+                {{ block.settings.answer_2 }}
+              </label>
+            {% endif %}
+
+            {% if block.settings.answer_3 != blank %}
+              <label class="avpc-pq-answer-option" for="answer-{{ block.id }}-3">
+                <input
+                  id="answer-{{ block.id }}-3"
+                  type="radio"
+                  name="answer-{{ block.id }}"
+                  value="{{ block.settings.products_3 | escape }}"
+                >
+                {{ block.settings.answer_3 }}
+              </label>
+            {% endif %}
+          </fieldset>
+          <div class="avpc-pq-nav">
+            {% unless forloop.first %}
+            <button type="button" class="avpc-pq-btn avpc-pq-btn-back" data-action="back">&larr; Back</button>
+            {% endunless %}
+            <span></span>
+          </div>
+        </div>
+      {% endif %}
+    {% endfor %}
+    <div class="avpc-pq-quiz-slide" data-slide="results-placeholder">
+      <div class="avpc-pq-slide-split">
+        <div class="avpc-pq-slide-media">
+          <div class="avpc-pq-placeholder" data-results-placeholder>
+            <div class="avpc-pq-placeholder-icon">&#127942;</div>
+            <div class="avpc-pq-placeholder-text">Answer the questions to<br>see your recommendation</div>
+          </div>
+        </div>
+        <div class="avpc-pq-slide-body">
+          <div class="avpc-pq-nav">
+            <button type="button" class="avpc-pq-btn avpc-pq-btn-back" data-action="back">&larr; Back</button>
+            <span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% if section.settings.product_1 != blank %}
+      <div class="avpc-pq-quiz-slide" data-slide="results" data-product-recommendation="1">
+        <div class="avpc-pq-slide-split">
+          <div class="avpc-pq-slide-media">
+            {% if section.settings.product_1_image %}
+              {{ section.settings.product_1_image | image_url: width: 800 | image_tag }}
+            {% elsif section.settings.product_1.featured_image %}
+              {{ section.settings.product_1.featured_image | image_url: width: 800 | image_tag }}
+            {% endif %}
+          </div>
+          <div class="avpc-pq-slide-body">
+            <h3>We recommend:</h3>
+            <a href="{% if section.settings.coupon_code != blank %}/discount/{{ section.settings.coupon_code | replace: " ", "%20" }}?redirect={% endif %}{{ section.settings.product_1.url }}" style="text-decoration: none; color: inherit; text-align: center;">
+              {% if section.settings.product_1_title != blank %}
+                <h4>{{ section.settings.product_1_title }}</h4>
+              {% elsif section.settings.product_1.title %}
+                <h4>{{ section.settings.product_1.title }}</h4>
+              {% endif %}
+              {% if section.settings.coupon_code != blank %}
+                <div class="avpc-pq-coupon-callout">
+                  <p class="avpc-pq-coupon-label">{{ avpc_pq_coupon_message | strip }}</p>
+                  <p class="avpc-pq-coupon-copy">{{ section.settings.coupon_code }}</p>
+                </div>
+              {% endif %}
+              <span class="avpc-pq-shop-btn">Shop {% if section.settings.product_1_title != blank %}{{ section.settings.product_1_title }}{% elsif section.settings.product_1.title %}{{ section.settings.product_1.title }}{% endif %} <span class="avpc-pq-arrow">&rarr;</span></span>
+            </a>
+            <div class="avpc-pq-nav">
+              <button type="button" class="avpc-pq-btn avpc-pq-btn-back" data-action="back">&larr; Back</button>
+              <span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+    {% if section.settings.product_2 != blank %}
+      <div class="avpc-pq-quiz-slide" data-slide="results" data-product-recommendation="2">
+        <div class="avpc-pq-slide-split">
+          <div class="avpc-pq-slide-media">
+            {% if section.settings.product_2_image %}
+              {{ section.settings.product_2_image | image_url: width: 800 | image_tag }}
+            {% elsif section.settings.product_2.featured_image %}
+              {{ section.settings.product_2.featured_image | image_url: width: 800 | image_tag }}
+            {% endif %}
+          </div>
+          <div class="avpc-pq-slide-body">
+            <h3>We recommend:</h3>
+            <a href="{% if section.settings.coupon_code != blank %}/discount/{{ section.settings.coupon_code | replace: " ", "%20" }}?redirect={% endif %}{{ section.settings.product_2.url }}" style="text-decoration: none; color: inherit; text-align: center;">
+              {% if section.settings.product_2_title != blank %}
+                <h4>{{ section.settings.product_2_title }}</h4>
+              {% elsif section.settings.product_2.title %}
+                <h4>{{ section.settings.product_2.title }}</h4>
+              {% endif %}
+              {% if section.settings.coupon_code != blank %}
+                <div class="avpc-pq-coupon-callout">
+                  <p class="avpc-pq-coupon-label">{{ avpc_pq_coupon_message | strip }}</p>
+                  <p class="avpc-pq-coupon-copy">{{ section.settings.coupon_code }}</p>
+                </div>
+              {% endif %}
+              <span class="avpc-pq-shop-btn">Shop {% if section.settings.product_2_title != blank %}{{ section.settings.product_2_title }}{% elsif section.settings.product_2.title %}{{ section.settings.product_2.title }}{% endif %} <span class="avpc-pq-arrow">&rarr;</span></span>
+            </a>
+            <div class="avpc-pq-nav">
+              <button type="button" class="avpc-pq-btn avpc-pq-btn-back" data-action="back">&larr; Back</button>
+              <span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+    {% if section.settings.product_3 != blank %}
+      <div class="avpc-pq-quiz-slide" data-slide="results" data-product-recommendation="3">
+        <div class="avpc-pq-slide-split">
+          <div class="avpc-pq-slide-media">
+            {% if section.settings.product_3_image %}
+              {{ section.settings.product_3_image | image_url: width: 800 | image_tag }}
+            {% elsif section.settings.product_3.featured_image %}
+              {{ section.settings.product_3.featured_image | image_url: width: 800 | image_tag }}
+            {% endif %}
+          </div>
+          <div class="avpc-pq-slide-body">
+            <h3>We recommend:</h3>
+            <a href="{% if section.settings.coupon_code != blank %}/discount/{{ section.settings.coupon_code | replace: " ", "%20" }}?redirect={% endif %}{{ section.settings.product_3.url }}" style="text-decoration: none; color: inherit; text-align: center;">
+              {% if section.settings.product_3_title != blank %}
+                <h4>{{ section.settings.product_3_title }}</h4>
+              {% elsif section.settings.product_3.title %}
+                <h4>{{ section.settings.product_3.title }}</h4>
+              {% endif %}
+              {% if section.settings.coupon_code != blank %}
+                <div class="avpc-pq-coupon-callout">
+                  <p class="avpc-pq-coupon-label">{{ avpc_pq_coupon_message | strip }}</p>
+                  <p class="avpc-pq-coupon-copy">{{ section.settings.coupon_code }}</p>
+                </div>
+              {% endif %}
+              <span class="avpc-pq-shop-btn">Shop {% if section.settings.product_3_title != blank %}{{ section.settings.product_3_title }}{% elsif section.settings.product_3.title %}{{ section.settings.product_3.title }}{% endif %} <span class="avpc-pq-arrow">&rarr;</span></span>
+            </a>
+            <div class="avpc-pq-nav">
+              <button type="button" class="avpc-pq-btn avpc-pq-btn-back" data-action="back">&larr; Back</button>
+              <span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+    {% if section.settings.product_4 != blank %}
+      <div class="avpc-pq-quiz-slide" data-slide="results" data-product-recommendation="4">
+        <div class="avpc-pq-slide-split">
+          <div class="avpc-pq-slide-media">
+            {% if section.settings.product_4_image %}
+              {{ section.settings.product_4_image | image_url: width: 800 | image_tag }}
+            {% elsif section.settings.product_4.featured_image %}
+              {{ section.settings.product_4.featured_image | image_url: width: 800 | image_tag }}
+            {% endif %}
+          </div>
+          <div class="avpc-pq-slide-body">
+            <h3>We recommend:</h3>
+            <a href="{% if section.settings.coupon_code != blank %}/discount/{{ section.settings.coupon_code | replace: " ", "%20" }}?redirect={% endif %}{{ section.settings.product_4.url }}" style="text-decoration: none; color: inherit; text-align: center;">
+              {% if section.settings.product_4_title != blank %}
+                <h4>{{ section.settings.product_4_title }}</h4>
+              {% elsif section.settings.product_4.title %}
+                <h4>{{ section.settings.product_4.title }}</h4>
+              {% endif %}
+              {% if section.settings.coupon_code != blank %}
+                <div class="avpc-pq-coupon-callout">
+                  <p class="avpc-pq-coupon-label">{{ avpc_pq_coupon_message | strip }}</p>
+                  <p class="avpc-pq-coupon-copy">{{ section.settings.coupon_code }}</p>
+                </div>
+              {% endif %}
+              <span class="avpc-pq-shop-btn">Shop {% if section.settings.product_4_title != blank %}{{ section.settings.product_4_title }}{% elsif section.settings.product_4.title %}{{ section.settings.product_4.title }}{% endif %} <span class="avpc-pq-arrow">&rarr;</span></span>
+            </a>
+            <div class="avpc-pq-nav">
+              <button type="button" class="avpc-pq-btn avpc-pq-btn-back" data-action="back">&larr; Back</button>
+              <span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+</avpc-product-quiz>
+
+{% schema %}
+  {
+    "name": "Product quiz",
+    "settings": [
+      {
+        "type": "text",
+        "id": "quiz_heading",
+        "label": "Quiz Heading"
+      },
+      {
+        "type": "text",
+        "id": "quiz_subheading",
+        "label": "Quiz Subheading"
+      },
+      {
+        "type": "image_picker",
+        "id": "image",
+        "label": "Quiz Image"
+      },
+      {
+        "type": "image_picker",
+        "id": "mobile_image",
+        "label": "Quiz Mobile Image",
+        "info": "Shown on mobile screens. If left blank, Quiz Image is used."
+      },
+      {
+        "type": "header",
+        "content": "Products"
+      },
+      {
+        "type": "product",
+        "id": "product_1",
+        "label": "Product 1"
+      },
+      {
+        "type": "text",
+        "id": "product_1_title",
+        "label": "Product 1 Title"
+      },
+      {
+        "type": "image_picker",
+        "id": "product_1_image",
+        "label": "Product 1 Image"
+      },
+      {
+        "type": "product",
+        "id": "product_2",
+        "label": "Product 2"
+      },
+      {
+        "type": "text",
+        "id": "product_2_title",
+        "label": "Product 2 Title"
+      },
+      {
+        "type": "image_picker",
+        "id": "product_2_image",
+        "label": "Product 2 Image"
+      },
+      {
+        "type": "product",
+        "id": "product_3",
+        "label": "Product 3"
+      },
+      {
+        "type": "text",
+        "id": "product_3_title",
+        "label": "Product 3 Title"
+      },
+      {
+        "type": "image_picker",
+        "id": "product_3_image",
+        "label": "Product 3 Image"
+      },
+      {
+        "type": "product",
+        "id": "product_4",
+        "label": "Product 4"
+      },
+      {
+        "type": "text",
+        "id": "product_4_title",
+        "label": "Product 4 Title"
+      },
+      {
+        "type": "image_picker",
+        "id": "product_4_image",
+        "label": "Product 4 Image"
+      },
+      {
+        "type": "header",
+        "content": "Coupon Settings (Optional)"
+      },
+      {
+        "type": "text",
+        "id": "coupon_code",
+        "label": "Coupon Code",
+        "info": "If you want to offer a coupon code to customers after they complete the quiz, enter it here. This coupon code must be set up in your Shopify admin. Leave blank to not offer a coupon."
+      },
+      {
+        "type": "range",
+        "id": "coupon_discount_amount",
+        "label": "Coupon Discount Amount",
+        "min": 0,
+        "max": 100,
+        "step": 5,
+        "default": 10
+      },
+      {
+        "type": "select",
+        "id": "coupon_discount_type",
+        "label": "Coupon Discount Type",
+        "options": [
+          {
+            "value": "percentage",
+            "label": "Percentage"
+          },
+          {
+            "value": "fixed_amount",
+            "label": "Fixed Amount"
+          }
+        ],
+        "default": "percentage"
+      },
+      {
+        "type": "header",
+        "content": "Style Settings"
+      },
+      {
+        "type": "range",
+        "id": "padding_top",
+        "label": "Padding Top",
+        "min": 0,
+        "max": 4,
+        "step": 0.5,
+        "unit": "rem",
+        "default": 2
+      },
+      {
+        "type": "range",
+        "id": "padding_bottom",
+        "label": "Padding Bottom",
+        "min": 0,
+        "max": 4,
+        "step": 0.5,
+        "unit": "rem",
+        "default": 2
+      },
+      {
+        "type": "color",
+        "id": "background_color",
+        "label": "Background color",
+        "default": "#FFFFFF"
+      },
+      {
+        "type": "color",
+        "id": "text_color",
+        "label": "Text color",
+        "default": "#222222"
+      },
+      {
+        "type": "color",
+        "id": "accent_color",
+        "label": "Accent color",
+        "default": "#4A6CF7"
+      },
+      {
+        "type": "color",
+        "id": "coupon_border_color",
+        "label": "Coupon border color",
+        "default": "#1f5f3b"
+      },
+      {
+        "type": "color",
+        "id": "coupon_background_color",
+        "label": "Coupon background color",
+        "default": "#f4fbf3"
+      },
+      {
+        "type": "color",
+        "id": "coupon_text_color",
+        "label": "Coupon text color",
+        "default": "#163c28"
+      }
+    ],
+    "blocks": [
+      {
+        "type": "question",
+        "name": "Question",
+        "settings": [
+          {
+            "type": "text",
+            "id": "question",
+            "label": "Question"
+          },
+          {
+            "type": "text",
+            "id": "answer_1",
+            "label": "Response 1"
+          },
+          {
+            "type": "text",
+            "id": "products_1",
+            "label": "Response 1 Product(s)"
+          },
+          {
+            "type": "text",
+            "id": "answer_2",
+            "label": "Response 2"
+          },
+          {
+            "type": "text",
+            "id": "products_2",
+            "label": "Response 2 Product(s)"
+          },
+          {
+            "type": "text",
+            "id": "answer_3",
+            "label": "Response 3"
+          },
+          {
+            "type": "text",
+            "id": "products_3",
+            "label": "Response 3 Product(s)"
+          }
+        ]
+      }
+    ],
+    "presets": [
+      {
+        "name": "Product quiz"
+      }
+    ]
+  }
+{% endschema %}
